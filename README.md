@@ -107,6 +107,73 @@ Execute the above step on all nodes.
 
 Probably a good time to make a backup of what we have so far.
 
-```
+## Driving a NeoPixel 8-LED strip
+
+Download and build software for driving NeoPixels: [rpi_ws281x](https://github.com/jgarff/rpi_ws281x)
+
+Install JDK 8:
 
 ```
+$ sudo apt-get install oracle-java8-jdk
+$ sudo apt-get update
+```
+
+Set `JAVA_HOME`
+
+```
+$ sudo update-alternatives --config java
+There is only one alternative in link group java (providing /usr/bin/java): /usr/lib/jvm/jdk-8-oracle-arm32-vfp-hflt/jre/bin/java
+Nothing to configure.
+```
+
+This tells us that `JAVA_HOME` is `/usr/lib/jvm/jdk-8-oracle-arm32-vfp-hflt`
+
+```
+$ git clone git@github.com:jgarff/rpi_ws281x.git
+$ mkdir java
+$ cp python/*.i java
+$ cd java
+$ swig -java rpi_ws281x.i
+$ gcc -Wl,--add-stdcall-alias -c *.c -I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux
+$ gcc -Wl,--add-stdcall-alias -shared ../*.o rpi_ws281x_wrap.o -o librpi_ws281x.so
+
+$ sudo java -Djava.library.path=. -jar exercise_000_initial_state-assembly-1.3.0.jar com.neopixel.Main 5
+```
+
+Once the shared library has been built, it is the only thing to enable access via java/scala to the NeoPixel strip.
+
+## Running base cluster with status LED indicators
+
+> Note: for convenience, set-up password-less ssh so that you can log-in to the PIs without having to enter a password
+
+On your laptop, run sbt and build an uber-jar if not done already:
+
+```
+$ sbt assembly
+```
+
+Copy the new jar file to the boards by running the following script:
+
+```
+$ cat copy_001
+#!/bin/bash
+
+for i in 0 1 2 3 4;do
+  scp exercise_001_cluster_base/target/scala-2.12/exercise_001_cluster_base-assembly-1.3.0.jar pirate@node-${i}:/home/pirate
+done
+```
+
+Start an ssh session on one of the boards and start-up the application.
+
+On node-0:
+
+```
+sudo java -Djava.library.path=. -Dakka.remote.netty.tcp.port=2550 -Dakka.remote.netty.tcp.hostname=192.168.0.101 -jar exercise_001_cluster_base-assembly-1.3.0.jar com.neopixel.Main
+```
+
+On node-1:
+
+```
+sudo java -Djava.library.path=. -Dakka.remote.netty.tcp.port=2550 -Dakka.remote.netty.tcp.hostname=192.168.0.102 -jar exercise_001_cluster_base-assembly-1.3.0.jar com.neopixel.Main
+```
+etc...
